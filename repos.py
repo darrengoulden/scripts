@@ -89,10 +89,11 @@ class CloneRepos:
                 Repo.clone_from(
                     f'{self.repos[repo]["git_url"]}', f"{repo_folder}{repo}"
                 )
-            Repo.clone_from(
+            else:
+                Repo.clone_from(
                 f'{self.repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
                 f"{repo_folder}{repo}",
-            )  # Use github-dg for ssh_url
+                )  # Use github-dg for ssh_url
 
 
 class MissingRepos:
