@@ -1,6 +1,6 @@
 # scripts
 
-`repos.py`
+`repos/repos.py`
 
 Manage Github repositories from Raycast
 
