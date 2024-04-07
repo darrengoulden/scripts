@@ -74,7 +74,7 @@ class Repos:
 
     def clone(self):
         """Clone repos."""
-        for repo in self.missing_repos:
+        for repo in self.missing_repos:  # pylint: disable=not-an-iterable
             if self.active_repos[repo]["archived"]:
                 continue
             print()
@@ -85,8 +85,8 @@ class Repos:
                 )
             else:
                 Repo.clone_from(
-                f'{self.active_repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
-                f"{repo_folder}{repo}",
+                    f'{self.active_repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
+                    f"{repo_folder}{repo}",
                 )  # Use github-dg for ssh_url
 
     def missing(self):
@@ -104,10 +104,10 @@ class Repos:
                 if repo not in self.active_repos:
                     self.orphaned_repos.append(repo)
         if self.orphaned_repos:
-            for repo in self.orphaned_repos:
+            for repo in self.orphaned_repos:  # pylint: disable=not-an-iterable
                 print()
-                #choice = input(f"Press 'y' to delete {repo}...")
-                #if choice.lower() == "y":
+                # choice = input(f"Press 'y' to delete {repo}...")
+                # if choice.lower() == "y":
                 # Raycast does not support input, so we will delete the orphaned repos without confirmation
                 os.system(f"rm -rf {repo_folder}{repo}")
                 self.orphaned_repos_deleted += 1
