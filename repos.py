@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+# pylint: disable=redefined-outer-name
+# pylint: disable=too-few-public-methods
+# pylint: disable=line-too-long
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title repos
+# @raycast.title Repos
 # @raycast.mode fullOutput
 
 # Optional parameters:
@@ -10,26 +13,29 @@
 # @raycast.argument1 { "type": "dropdown", "placeholder": "", "data" : [{"title": "Clone", "value": "-c"}, {"title": "Delete", "value": "-d"}, {"title": "Missing", "value": "-m"}], "optional": true}
 
 # Documentation:
-# @raycast.description Check repos
+# @raycast.description Manage Github repos
 # @raycast.author darrengoulden
 # @raycast.authorURL https://github.com/darrengoulden
 
+"""
+Script to manage Github repositories from Raycast.
+"""
+
 import argparse
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from github import Github
 from git import Repo
-from pathlib import Path
 
-repo_folder = f'{Path.home()}/github/personal/'
+repo_folder = f"{Path.home()}/github/personal/"
 ignored_folders = [
-    '.git',
-    '.DS_Store',
-    '.obsidian',
+    ".git",
+    ".DS_Store",
+    ".obsidian",
 ]
-use_git_url = False
-use_ssh_url = True
+USE_GIT_URL = False
 
 load_dotenv()
 u = os.getenv("GITHUB_USERNAME")
@@ -40,11 +46,13 @@ g = Github(t)
 
 class GetRepos:
     """Get all repos from git user and check if they are cloned on locally."""
+
     def __init__(self):
         self.repos = g.get_user().get_repos()
         self.active_repos = {}
 
     def get_repos(self):
+        """Get repos."""
         if self.repos:
             for repo in self.repos:
                 if repo.owner.login == u:
@@ -57,62 +65,73 @@ class GetRepos:
                         "size": repo.size,
                         "ssh_url": repo.ssh_url,
                         "watchers_count": repo.watchers_count,
-                        "visibility": repo.visibility
+                        "visibility": repo.visibility,
                     }
             return self.active_repos
-        else:
-            return None
+        return None
 
 
 class CloneRepos:
     """Clone all missing repos."""
+
     def __init__(self, repos, missing_repos):
         self.repos = repos
         self.missing_repos = missing_repos
 
     def clone_repos(self):
+        """Clone repos."""
         for repo in self.missing_repos:
-            if self.repos[repo]['archived']:
+            if self.repos[repo]["archived"]:
                 continue
             print()
             print(f"Cloning {repo}...")
-            if use_git_url:
-                Repo.clone_from(f'{self.repos[repo]["git_url"]}', f'{repo_folder}{repo}')
-            Repo.clone_from(f'{self.repos[repo]["ssh_url"].replace("github.com", "github-dg")}', f'{repo_folder}{repo}')  # Use github-dg for ssh_url
+            if USE_GIT_URL:
+                Repo.clone_from(
+                    f'{self.repos[repo]["git_url"]}', f"{repo_folder}{repo}"
+                )
+            Repo.clone_from(
+                f'{self.repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
+                f"{repo_folder}{repo}",
+            )  # Use github-dg for ssh_url
 
 
 class MissingRepos:
     """Check if any repos are missing."""
+
     def __init__(self, repos):
         self.repos = repos
 
     def missing_repos(self):
+        """Get missing repos."""
         missing_repos = []
         for repo in self.repos:
-            if not os.path.exists(f'{repo_folder}{repo}'):
+            if not os.path.exists(f"{repo_folder}{repo}"):
                 missing_repos.append(repo)
         return missing_repos
 
 
 class DeleteRepos:
     """Delete orphaned repos."""
+
     def __init__(self, repos):
         self.repos = repos
         self.orphaned_repos = []
         self.orphaned_repos_deleted = 0
 
     def delete_repos(self):
+        """Delete repos."""
         for repo in os.listdir(repo_folder):
             if repo not in ignored_folders:
-                if repo not in [r for r in self.repos]:
+                if repo not in self.repos:
                     self.orphaned_repos.append(repo)
         if self.orphaned_repos:
             for repo in self.orphaned_repos:
                 print()
-                choice = input(f"Press 'y' to delete {repo}...")
-                if choice.lower() == "y":
-                    os.system(f'rm -rf {repo_folder}{repo}')
-                    self.orphaned_repos_deleted += 1
+                #choice = input(f"Press 'y' to delete {repo}...")
+                #if choice.lower() == "y":
+                # Raycast does not support input, so we will delete the orphaned repos without confirmation
+                os.system(f"rm -rf {repo_folder}{repo}")
+                self.orphaned_repos_deleted += 1
             print(f"Deleted {self.orphaned_repos_deleted} orphaned repos.")
         else:
             print()
@@ -121,9 +140,15 @@ class DeleteRepos:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check repos")
-    parser.add_argument("-c", "--clone", help="Clone all missing repos", action="store_true")
-    parser.add_argument("-d", "--delete", help="Delete orphaned repos", action="store_true")
-    parser.add_argument("-m", "--missing", help="List missing repos", action="store_true")
+    parser.add_argument(
+        "-c", "--clone", help="Clone all missing repos", action="store_true"
+    )
+    parser.add_argument(
+        "-d", "--delete", help="Delete orphaned repos", action="store_true"
+    )
+    parser.add_argument(
+        "-m", "--missing", help="List missing repos", action="store_true"
+    )
     args, unknown = parser.parse_known_args()
 
     assert u, "Please set GITHUB_USERNAME in .env"
@@ -138,15 +163,15 @@ if __name__ == "__main__":
         for repo in all_repos:
             if repo in ignored_folders:
                 continue
-            if all_repos[repo]['visibility'] == "public":
+            if all_repos[repo]["visibility"] == "public":
                 public.append(repo)
             else:
                 private.append(repo)
         if public:
             print(f"Public repos ({len(public)}):")
             for repo in public:
-                if os.path.exists(f'{repo_folder}{repo}'):
-                    current_repo = Repo(f'{repo_folder}{repo}')
+                if os.path.exists(f"{repo_folder}{repo}"):
+                    current_repo = Repo(f"{repo_folder}{repo}")
                     if current_repo.untracked_files:
                         print(f"\033[0;33m●\033[0m {repo} (untracked files)")
                     elif current_repo.is_dirty():
@@ -157,9 +182,9 @@ if __name__ == "__main__":
             print()
             print(f"Private repos ({len(private)}):")
             for repo in private:
-                if os.path.exists(f'{repo_folder}{repo}'):
-                    current_repo = Repo(f'{repo_folder}{repo}')
-                    
+                if os.path.exists(f"{repo_folder}{repo}"):
+                    current_repo = Repo(f"{repo_folder}{repo}")
+
                     if current_repo.untracked_files:
                         print(f"\033[0;33m●\033[0m {repo} (untracked files)")
                     elif current_repo.is_dirty():
@@ -171,7 +196,7 @@ if __name__ == "__main__":
                 print()
                 print("Missing repos:")
                 for repo in missing_repos:
-                    if all_repos[repo]['archived']:
+                    if all_repos[repo]["archived"]:
                         continue
                     print(f"\033[0;31m●\033[0m {repo}")
             else:
