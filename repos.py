@@ -138,6 +138,18 @@ class DeleteRepos:
             print("No orphaned repos found.")
 
 
+def _print_repos(repos):
+    """Print repos."""
+    for repo in repos:
+        if os.path.exists(f"{repo_folder}{repo}"):
+            current_repo = Repo(f"{repo_folder}{repo}")
+            if current_repo.untracked_files:
+                print(f"\033[0;33m●\033[0m {repo} (untracked files)")
+            elif current_repo.is_dirty():
+                print(f"\033[0;33m●\033[0m {repo} (dirty)")
+            else:
+                print(f"\033[0;32m●\033[0m {repo}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check repos")
     parser.add_argument(
@@ -169,28 +181,11 @@ if __name__ == "__main__":
                 private.append(repo)
         if public:
             print(f"Public repos ({len(public)}):")
-            for repo in public:
-                if os.path.exists(f"{repo_folder}{repo}"):
-                    current_repo = Repo(f"{repo_folder}{repo}")
-                    if current_repo.untracked_files:
-                        print(f"\033[0;33m●\033[0m {repo} (untracked files)")
-                    elif current_repo.is_dirty():
-                        print(f"\033[0;33m●\033[0m {repo} (dirty)")
-                    else:
-                        print(f"\033[0;32m●\033[0m {repo}")
+            _print_repos(public)
         if private:
             print()
             print(f"Private repos ({len(private)}):")
-            for repo in private:
-                if os.path.exists(f"{repo_folder}{repo}"):
-                    current_repo = Repo(f"{repo_folder}{repo}")
-
-                    if current_repo.untracked_files:
-                        print(f"\033[0;33m●\033[0m {repo} (untracked files)")
-                    elif current_repo.is_dirty():
-                        print(f"\033[0;33m●\033[0m {repo} (dirty)")
-                    else:
-                        print(f"\033[0;32m●\033[0m {repo}")
+            _print_repos(private)
         if args.missing:
             if missing_repos:
                 print()
