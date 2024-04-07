@@ -44,86 +44,64 @@ t = os.getenv("GITHUB_TOKEN")
 g = Github(t)
 
 
-class GetRepos:
+class Repos:
     """Get all repos from git user and check if they are cloned on locally."""
 
     def __init__(self):
         self.repos = g.get_user().get_repos()
-        self.active_repos = {}
+        self.active_repos = {} if self.repos else None
+        self.github_repos = self.get() if self.repos else None
+        self.missing_repos = self.missing() if self.active_repos else None
+        self.orphaned_repos = [] if self.active_repos else None
+        self.orphaned_repos_deleted = 0
 
-    def get_repos(self):
+    def get(self):
         """Get repos."""
-        if self.repos:
-            for repo in self.repos:
-                if repo.owner.login == u:
-                    self.active_repos[repo.name] = {
-                        "archived": repo.archived,
-                        "created_at": repo.created_at,
-                        "default_branch": repo.default_branch,
-                        "git_url": repo.git_url,
-                        "last_modified": repo.last_modified,
-                        "size": repo.size,
-                        "ssh_url": repo.ssh_url,
-                        "watchers_count": repo.watchers_count,
-                        "visibility": repo.visibility,
-                    }
-            return self.active_repos
-        return None
+        for repo in self.repos:
+            if repo.owner.login == u:
+                self.active_repos[repo.name] = {
+                    "archived": repo.archived,
+                    "created_at": repo.created_at,
+                    "default_branch": repo.default_branch,
+                    "git_url": repo.git_url,
+                    "last_modified": repo.last_modified,
+                    "size": repo.size,
+                    "ssh_url": repo.ssh_url,
+                    "watchers_count": repo.watchers_count,
+                    "visibility": repo.visibility,
+                }
+        return self.active_repos
 
-
-class CloneRepos:
-    """Clone all missing repos."""
-
-    def __init__(self, repos, missing_repos):
-        self.repos = repos
-        self.missing_repos = missing_repos
-
-    def clone_repos(self):
+    def clone(self):
         """Clone repos."""
         for repo in self.missing_repos:
-            if self.repos[repo]["archived"]:
+            if self.active_repos[repo]["archived"]:
                 continue
             print()
             print(f"Cloning {repo}...")
             if USE_GIT_URL:
                 Repo.clone_from(
-                    f'{self.repos[repo]["git_url"]}', f"{repo_folder}{repo}"
+                    f'{self.active_repos[repo]["git_url"]}', f"{repo_folder}{repo}"
                 )
             else:
                 Repo.clone_from(
-                f'{self.repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
+                f'{self.active_repos[repo]["ssh_url"].replace("github.com", "github-dg")}',
                 f"{repo_folder}{repo}",
                 )  # Use github-dg for ssh_url
 
-
-class MissingRepos:
-    """Check if any repos are missing."""
-
-    def __init__(self, repos):
-        self.repos = repos
-
-    def missing_repos(self):
+    def missing(self):
         """Get missing repos."""
         missing_repos = []
-        for repo in self.repos:
+        for repo in self.active_repos:
             if not os.path.exists(f"{repo_folder}{repo}"):
                 missing_repos.append(repo)
         return missing_repos
 
-
-class DeleteRepos:
-    """Delete orphaned repos."""
-
-    def __init__(self, repos):
-        self.repos = repos
-        self.orphaned_repos = []
-        self.orphaned_repos_deleted = 0
-
-    def delete_repos(self):
+    def delete(self):
         """Delete repos."""
         for repo in os.listdir(repo_folder):
             if repo not in ignored_folders:
-                if repo not in self.repos:
+                if repo not in self.active_repos:
                     self.orphaned_repos.append(repo)
         if self.orphaned_repos:
             for repo in self.orphaned_repos:
@@ -138,18 +116,18 @@ class DeleteRepos:
             print()
             print("No orphaned repos found.")
 
+    def print(self, repos):
+        """Print repos."""
+        for repo in repos:
+            if os.path.exists(f"{repo_folder}{repo}"):
+                current_repo = Repo(f"{repo_folder}{repo}")
+                if current_repo.untracked_files:
+                    print(f"\033[0;33m●\033[0m {repo} (untracked files)")
+                elif current_repo.is_dirty():
+                    print(f"\033[0;33m●\033[0m {repo} (dirty)")
+                else:
+                    print(f"\033[0;32m●\033[0m {repo}")
 
-def _print_repos(repos):
-    """Print repos."""
-    for repo in repos:
-        if os.path.exists(f"{repo_folder}{repo}"):
-            current_repo = Repo(f"{repo_folder}{repo}")
-            if current_repo.untracked_files:
-                print(f"\033[0;33m●\033[0m {repo} (untracked files)")
-            elif current_repo.is_dirty():
-                print(f"\033[0;33m●\033[0m {repo} (dirty)")
-            else:
-                print(f"\033[0;32m●\033[0m {repo}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check repos")
@@ -167,8 +145,9 @@ if __name__ == "__main__":
     assert u, "Please set GITHUB_USERNAME in .env"
     assert t, "Please set GITHUB_TOKEN in .env"
 
-    all_repos = GetRepos().get_repos()
-    missing_repos = MissingRepos(all_repos).missing_repos()
+    repositories = Repos()
+    all_repos = repositories.get()
+    missing_repos = repositories.missing()
 
     if all_repos:
         public = []
@@ -182,11 +161,11 @@ if __name__ == "__main__":
                 private.append(repo)
         if public:
             print(f"Public repos ({len(public)}):")
-            _print_repos(public)
+            repositories.print(public)
         if private:
             print()
             print(f"Private repos ({len(private)}):")
-            _print_repos(private)
+            repositories.print(private)
         if args.missing:
             if missing_repos:
                 print()
@@ -201,11 +180,11 @@ if __name__ == "__main__":
         if args.clone:
             if missing_repos:
                 for repo in missing_repos:
-                    CloneRepos(all_repos, missing_repos).clone_repos()
+                    repositories.clone()
             else:
                 print()
                 print("No missing repos to clone.")
         if args.delete:
-            DeleteRepos(all_repos).delete_repos()
+            repositories.delete()
     else:
         print("No repos found.")
