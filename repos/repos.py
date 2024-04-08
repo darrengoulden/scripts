@@ -24,6 +24,7 @@ Script to manage Github repositories from Raycast.
 import argparse
 import os
 from pathlib import Path
+import sys
 
 from dotenv import load_dotenv
 from github import Github
@@ -37,6 +38,7 @@ ignored_folders = [
 ]
 USE_GIT_URL = False
 
+
 load_dotenv()
 u = os.getenv("GITHUB_USERNAME")
 t = os.getenv("GITHUB_TOKEN")
@@ -47,7 +49,8 @@ g = Github(t)
 class Repos:
     """Get all repos from git user and check if they are cloned on locally."""
 
-    def __init__(self):
+    def __init__(self, interactive=False):
+        self.interactive = interactive
         self.repos = g.get_user().get_repos()
         self.active_repos = {} if self.repos else None
         self.github_repos = self.get() if self.repos else None
@@ -106,11 +109,15 @@ class Repos:
         if self.orphaned_repos:
             for repo in self.orphaned_repos:  # pylint: disable=not-an-iterable
                 print()
-                # choice = input(f"Press 'y' to delete {repo}...")
-                # if choice.lower() == "y":
-                # Raycast does not support input, so we will delete the orphaned repos without confirmation
-                os.system(f"rm -rf {repo_folder}{repo}")
-                self.orphaned_repos_deleted += 1
+                if self.interactive:
+                    choice = input(f"Press 'y' to delete {repo}...")
+                    if choice.lower() == "y":
+                        os.system(f"rm -rf {repo_folder}{repo}")
+                        self.orphaned_repos_deleted += 1
+                else:
+                    # Raycast does not support input, so we will delete the orphaned repos without confirmation
+                    os.system(f"rm -rf {repo_folder}{repo}")
+                    self.orphaned_repos_deleted += 1
             print(f"Deleted {self.orphaned_repos_deleted} orphaned repos.")
         else:
             print()
@@ -129,7 +136,8 @@ class Repos:
                     print(f"\033[0;32m●\033[0m {repo}")
 
 
-if __name__ == "__main__":
+def parse_args(args=None, unknown=None):
+    """Arg parser."""
     parser = argparse.ArgumentParser(description="Check repos")
     parser.add_argument(
         "-c", "--clone", help="Clone all missing repos", action="store_true"
@@ -141,17 +149,28 @@ if __name__ == "__main__":
         "-m", "--missing", help="List missing repos", action="store_true"
     )
     args, unknown = parser.parse_known_args()
+    if unknown:
+        parser.print_help()
+        sys.exit(1)
+    return args
 
-    assert u, "Please set GITHUB_USERNAME in .env"
-    assert t, "Please set GITHUB_TOKEN in .env"
 
-    repositories = Repos()
+def main():  # pylint: disable=too-many-branches
+    """Main function."""
+    args = parse_args()
+
+    interactive = False
+    public = []
+    private = []
+
+    if sys.stdin and sys.stdin.isatty():
+        interactive = True
+
+    repositories = Repos(interactive)
     all_repos = repositories.get()
     missing_repos = repositories.missing()
 
     if all_repos:
-        public = []
-        private = []
         for repo in all_repos:
             if repo in ignored_folders:
                 continue
@@ -188,3 +207,9 @@ if __name__ == "__main__":
             repositories.delete()
     else:
         print("No repos found.")
+
+
+if __name__ == "__main__":
+    assert u, "Please set GITHUB_USERNAME in .env"
+    assert t, "Please set GITHUB_TOKEN in .env"
+    main()
