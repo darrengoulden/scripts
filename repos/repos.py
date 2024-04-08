@@ -38,7 +38,6 @@ ignored_folders = [
 ]
 USE_GIT_URL = False
 
-
 load_dotenv()
 u = os.getenv("GITHUB_USERNAME")
 t = os.getenv("GITHUB_TOKEN")
@@ -52,10 +51,9 @@ class Repos:
     def __init__(self, interactive=False):
         self.interactive = interactive
         self.repos = g.get_user().get_repos()
-        self.active_repos = {} if self.repos else None
-        self.github_repos = self.get() if self.repos else None
+        self.active_repos = {}
         self.missing_repos = self.missing() if self.active_repos else None
-        self.orphaned_repos = [] if self.active_repos else None
+        self.orphaned_repos = []
         self.orphaned_repos_deleted = 0
 
     def get(self):
@@ -149,9 +147,11 @@ def parse_args(args=None, unknown=None):
         "-m", "--missing", help="List missing repos", action="store_true"
     )
     args, unknown = parser.parse_known_args()
-    if unknown:
-        parser.print_help()
-        sys.exit(1)
+
+    if sys.stdin and sys.stdin.isatty():
+        if unknown:
+            parser.print_help()
+            sys.exit(1)
     return args
 
 
