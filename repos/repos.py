@@ -94,6 +94,8 @@ class Repos:
         """Get missing repos."""
         missing_repos = []
         for repo in self.active_repos:
+            if self.active_repos[repo]["archived"]:
+                continue
             if not os.path.exists(f"{repo_folder}{repo}"):
                 missing_repos.append(repo)
         return missing_repos
@@ -179,9 +181,11 @@ def main():  # pylint: disable=too-many-branches
             if repo in ignored_folders:
                 continue
             if all_repos[repo]["visibility"] == "public":
-                public.append(repo)
+                if not all_repos[repo]["archived"]:
+                    public.append(repo)
             else:
-                private.append(repo)
+                if not all_repos[repo]["archived"]:
+                    private.append(repo)
         if public:
             print(f"Public repos ({len(public)}):")
             repositories.print(public)
@@ -194,8 +198,6 @@ def main():  # pylint: disable=too-many-branches
                 print()
                 print("Missing repos:")
                 for repo in missing_repos:
-                    if all_repos[repo]["archived"]:
-                        continue
                     print(f"\033[0;31m●\033[0m {repo}")
             else:
                 print()
