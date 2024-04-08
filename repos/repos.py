@@ -104,6 +104,10 @@ class Repos:
             if repo not in ignored_folders:
                 if repo not in self.active_repos:
                     self.orphaned_repos.append(repo)
+        for repo in self.active_repos:
+            if self.active_repos[repo]["archived"]:
+                if os.path.exists(f"{repo_folder}{repo}"):
+                    self.orphaned_repos.append(repo)
         if self.orphaned_repos:
             for repo in self.orphaned_repos:  # pylint: disable=not-an-iterable
                 print()
